@@ -30,7 +30,6 @@ TELEGRAM_DB_NAME=bot
 # SQL запрос для поиска контакта
 # в :entity будет подставлен номер телефона с % в начале для поиска по LIKE
 # в :uid будет подставлен ID пользователя
-# обязательно в результате должна быть только одна запись, по этому используется LIMIT 1
 TELEGRAM_DB_QUERY="SELECT `telegram_id` FROM `users` WHERE `phone_number` LIKE :entity OR `billing_uid`=:uid"
 
 # Название поля с уникальным ID пользователя telegram
