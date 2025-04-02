@@ -3,6 +3,8 @@
 namespace Nekkoy\GatewayTelegram\Services;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Nekkoy\GatewayAbstract\DTO\ResponseDTO;
 use Nekkoy\GatewayAbstract\Services\AbstractSendMessageService;
 use Nekkoy\GatewayTelegram\DTO\ConfigDTO;
 
@@ -17,8 +19,8 @@ class SendMessageService extends AbstractSendMessageService
     /** @var ConfigDTO */
     protected $config;
 
-    /** @var int */
-    protected $user_id;
+    /** @var array */
+    protected $users = [];
 
     /**  */
     protected function init() {
@@ -36,11 +38,14 @@ class SendMessageService extends AbstractSendMessageService
         $phone = preg_replace('~\D+~','', $this->message->destination);
         $data = $telegramConnection->select($this->config->dbquery, ["entity" => "%{$phone}", "uid" => $this->message->user_id]);
         if( !empty($data) ) {
-            $user = reset($data);
+            foreach($data as $user) {
+                if( isset($user->{$this->config->userid_field}) ) {
+                    $user_id = $user->{$this->config->userid_field};
 
-            if( isset($user->{$this->config->userid_field}) ) {
-                $this->user_id = $user->{$this->config->userid_field};
-                $this->enabled = true;
+                    if( !in_array($user_id, $this->users) ) {
+                        $this->users[] = $user_id;
+                    }
+                }
             }
         }
     }
@@ -51,11 +56,14 @@ class SendMessageService extends AbstractSendMessageService
         return $this->api_url . sprintf('/bot%s/sendMessage', $this->config->token);
     }
 
-    /** @return mixed */
     protected function data()
     {
+        if( empty($this->users) ) {
+            return false;
+        }
+
         return [
-            'chat_id' => $this->user_id,
+            'chat_id' => array_shift($this->users),
             'text' => $this->message->text
         ];
     }
@@ -101,5 +109,65 @@ class SendMessageService extends AbstractSendMessageService
             $this->response_code = -1;
             $this->response_message = "Telegram error";
         }
+    }
+
+    public function send() {
+        // режим разработчика
+        if( $this->config->devmode ) {
+            $this->response = $this->development(); // имитируем ответ
+        } elseif( empty($this->users) ) {
+            return new ResponseDTO('User not found', -2);
+        } else {
+            $ch = curl_init($this->url());
+            if( $ch === false ) {
+                return new ResponseDTO('Curl init error', -3);
+            }
+
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connect_timeout);
+            curl_setopt($ch, CURLOPT_USERAGENT, $this->useragent);
+            curl_setopt($ch, CURLOPT_HEADER, true); // Получаем заголовки ответа
+            $ch = $this->curl_options($ch);
+
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            if( !empty($this->header) ) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $this->header);
+            }
+
+            do {
+                $postData = $this->data();
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+
+                Log::debug($this->url());
+                Log::debug($postData);
+
+                $attempts = 1;
+                do {
+                    try {
+                        $this->response = curl_exec($ch);
+                        $this->response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                        Log::debug($this->response);
+                    } catch (\Exception $e) {
+                        $this->response_code = 408; // Request Timeout
+                        $this->response_message = $e->getMessage();
+                    }
+
+                    $attempts++;
+                } while($attempts <= $this->max_attempts);
+            } while ( !empty($this->users) );
+            curl_close($ch);
+
+            if( $this->response === false ) {
+                return new ResponseDTO('No response from gateway', -1000);
+            }
+        }
+
+        $this->response();
+
+        return new ResponseDTO($this->response_message, $this->response_code, $this->message_id);
     }
 }
