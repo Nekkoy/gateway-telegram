@@ -7,7 +7,7 @@ return [
     "dblogin" => env('TELEGRAM_DB_LOGIN', 'root'),
     "dbpassword" => env('TELEGRAM_DB_PASSWORD', ''),
     "dbname" => env('TELEGRAM_DB_NAME', ''),
-    "dbquery" => env('TELEGRAM_DB_QUERY', 'SELECT `telegram_id` FROM `users` WHERE `phone_number` LIKE :entity OR `billing_uid`=:uid LIMIT 1'),
+    "dbquery" => env('TELEGRAM_DB_QUERY', 'SELECT `telegram_id` FROM `users` WHERE `phone_number` LIKE :entity OR `billing_uid`=:uid'),
     "userid_field" => env('TELEGRAM_DB_USERID_FIELD', 'telegram_id'),
     "priority" => env('TELEGRAM_PRIORITY', 1),
     "prefix" => env('TELEGRAM_PREFIX', "any"),
