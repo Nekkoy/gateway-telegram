@@ -23,7 +23,6 @@ class SendMessageService extends AbstractSendMessageService
 
     /**  */
     protected function init() {
-        $this->enabled = false;
         $ConnectionConfig = array_merge(config('database.connections.mysql'), [
             'host' => $this->config->dbhost,
             'database' => $this->config->dbname,
