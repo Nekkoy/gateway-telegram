@@ -36,10 +36,6 @@ class SendMessageService extends AbstractSendMessageService
         $phone = preg_replace('~\D+~','', $this->message->destination);
         $data = $telegramConnection->select($this->config->dbquery, ["entity" => "%{$phone}", "uid" => $this->message->user_id]);
         if( !empty($data) ) {
-            if( isset($this->config->skip) && $this->config->skip == true ) {
-                return;
-            }
-
             foreach($data as $user) {
                 if( isset($user->{$this->config->userid_field}) ) {
                     $user_id = $user->{$this->config->userid_field};
