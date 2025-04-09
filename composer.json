@@ -3,7 +3,7 @@
     "description": "SMS Gateway for Telegram",
     "homepage": "https://github.com/nekkoy/gateway-telegram",
     "type": "library",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "license": "MIT",
     "keywords": ["nekkoy", "laravel", "telegram", "sms", "gateway"],
     "authors": [
@@ -23,7 +23,8 @@
         "php": ">=7.2",
         "nekkoy/gateway-abstract": ">=1.0",
         "illuminate/support": "^8.0|^9.0|^10.0|^11.0|^12.0",
-        "ext-curl": "*"
+        "ext-curl": "*",
+        "ext-json": "*"
     },
     "extra": {
         "laravel": {

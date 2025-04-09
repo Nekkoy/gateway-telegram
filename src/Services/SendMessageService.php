@@ -4,7 +4,6 @@ namespace Nekkoy\GatewayTelegram\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Nekkoy\GatewayAbstract\DTO\ResponseDTO;
 use Nekkoy\GatewayAbstract\Services\AbstractSendMessageService;
 use Nekkoy\GatewayTelegram\DTO\ConfigDTO;
 
@@ -38,6 +37,10 @@ class SendMessageService extends AbstractSendMessageService
         $phone = preg_replace('~\D+~','', $this->message->destination);
         $data = $telegramConnection->select($this->config->dbquery, ["entity" => "%{$phone}", "uid" => $this->message->user_id]);
         if( !empty($data) ) {
+            if( isset($this->config->skip) && $this->config->skip == true ) {
+                return;
+            }
+
             foreach($data as $user) {
                 if( isset($user->{$this->config->userid_field}) ) {
                     $user_id = $user->{$this->config->userid_field};
@@ -111,63 +114,30 @@ class SendMessageService extends AbstractSendMessageService
         }
     }
 
-    public function send() {
-        // режим разработчика
-        if( $this->config->devmode ) {
-            $this->response = $this->development(); // имитируем ответ
-        } elseif( empty($this->users) ) {
-            return new ResponseDTO('User not found', -2);
-        } else {
-            $ch = curl_init($this->url());
-            if( $ch === false ) {
-                return new ResponseDTO('Curl init error', -3);
-            }
+    protected function execute($ch) {
+        do {
+            $postData = $this->data();
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
 
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->connect_timeout);
-            curl_setopt($ch, CURLOPT_USERAGENT, $this->useragent);
-            curl_setopt($ch, CURLOPT_HEADER, true); // Получаем заголовки ответа
-            $ch = $this->curl_options($ch);
+            Log::debug($this->url());
+            Log::debug($postData);
 
-            curl_setopt($ch, CURLOPT_HEADER, false);
-            if( !empty($this->header) ) {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $this->header);
-            }
-
+            $attempts = 1;
             do {
-                $postData = $this->data();
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+                try {
+                    $this->response = curl_exec($ch);
+                    $this->response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-                Log::debug($this->url());
-                Log::debug($postData);
+                    Log::debug($this->response);
+                } catch (\Exception $e) {
+                    $this->response_code = 408; // Request Timeout
+                    $this->response_message = $e->getMessage();
+                }
 
-                $attempts = 1;
-                do {
-                    try {
-                        $this->response = curl_exec($ch);
-                        $this->response_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-                        Log::debug($this->response);
-                    } catch (\Exception $e) {
-                        $this->response_code = 408; // Request Timeout
-                        $this->response_message = $e->getMessage();
-                    }
-
-                    $attempts++;
-                } while($attempts <= $this->max_attempts);
-            } while ( !empty($this->users) );
-            curl_close($ch);
-
-            if( $this->response === false ) {
-                return new ResponseDTO('No response from gateway', -1000);
-            }
-        }
-
-        $this->response();
-
-        return new ResponseDTO($this->response_message, $this->response_code, $this->message_id);
+                $attempts++;
+            } while($attempts <= $this->max_attempts);
+        } while ( !empty($this->users) );
+        curl_close($ch);
     }
 }

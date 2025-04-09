@@ -52,6 +52,18 @@ class ConfigDTO extends AbstractConfigDTO
     public $userid_field;
 
     /**
+     * Special tag for skipping send request
+     * @var bool
+     */
+    public $skip_tag = "#skipTG";
+
+    /**
+     * If message contains special tag, skip send request
+     * @var bool
+     */
+    public $skip = false;
+
+    /**
      * @var string
      */
     public $handler = \Nekkoy\GatewayTelegram\Services\SendMessageService::class;

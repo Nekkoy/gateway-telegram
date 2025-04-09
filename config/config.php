@@ -12,6 +12,7 @@ return [
     "priority" => env('TELEGRAM_PRIORITY', 1),
     "prefix" => env('TELEGRAM_PREFIX', "any"),
     "tags" => env('TELEGRAM_TAGS', '#telegram, #tg'),
+    "skip_tag" => env('TELEGRAM_SKIP_TAG', '#skipTG'),
     "default" => env('TELEGRAM_DEFAULT', false),
     "devmode" => env('TELEGRAM_DEVMODE', false),
 ];
